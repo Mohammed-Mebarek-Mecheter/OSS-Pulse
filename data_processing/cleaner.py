@@ -2,7 +2,6 @@
 import logging
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
 from pocketbase import PocketBase
 from pocketbase.client import ClientResponseError
 import os
@@ -30,7 +29,6 @@ def authenticate_pocketbase():
         logging.error(f"Failed to authenticate with PocketBase: {e}")
         raise
 
-
 def fetch_data_from_pocketbase(collection_name):
     """
     Fetch data from a PocketBase collection and return as a DataFrame.
@@ -40,26 +38,33 @@ def fetch_data_from_pocketbase(collection_name):
         df = pd.DataFrame([record.dict() for record in records])
         return df
     except ClientResponseError as e:
-        print(f"Error fetching data from {collection_name}: {e}")
+        logging.error(f"Error fetching data from {collection_name}: {e}")
         return pd.DataFrame()
 
+def convert_to_datetime(df, columns):
+    """
+    Convert specified columns to datetime with UTC timezone.
+    """
+    for col in columns:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors='coerce', utc=True)
+    return df
 
 def clean_repository_data(repo_df):
-    if repo_df.empty:
-        logging.warning("Repository DataFrame is empty")
-        return repo_df
     """
     Clean the repository dataframe.
     """
+    if repo_df.empty:
+        logging.warning("Repository DataFrame is empty")
+        return repo_df
+
     # Convert date columns to datetime
     date_columns = ['created_at', 'updated_at']
-    for col in date_columns:
-        repo_df[col] = pd.to_datetime(repo_df[col], utc=True)
+    repo_df = convert_to_datetime(repo_df, date_columns)
 
     # Ensure numeric columns are of the correct type
     numeric_columns = ['stars', 'forks', 'open_issues']
-    for col in numeric_columns:
-        repo_df[col] = pd.to_numeric(repo_df[col], errors='coerce')
+    repo_df[numeric_columns] = repo_df[numeric_columns].apply(pd.to_numeric, errors='coerce')
 
     # Fill NaN values in numeric columns with 0
     repo_df[numeric_columns] = repo_df[numeric_columns].fillna(0)
@@ -69,15 +74,17 @@ def clean_repository_data(repo_df):
 
     return repo_df
 
-
 def clean_issues_data(issues_df):
     """
     Clean the issues dataframe.
     """
+    if issues_df.empty:
+        logging.warning("Issues DataFrame is empty")
+        return issues_df
+
     # Convert date columns to datetime
     date_columns = ['created_at', 'updated_at', 'closed_at']
-    for col in date_columns:
-        issues_df[col] = pd.to_datetime(issues_df[col], utc=True)
+    issues_df = convert_to_datetime(issues_df, date_columns)
 
     # Ensure 'number' is integer
     issues_df['number'] = pd.to_numeric(issues_df['number'], errors='coerce').astype('Int64')
@@ -90,15 +97,17 @@ def clean_issues_data(issues_df):
 
     return issues_df
 
-
 def clean_pull_requests_data(pr_df):
     """
     Clean the pull requests dataframe.
     """
+    if pr_df.empty:
+        logging.warning("Pull Requests DataFrame is empty")
+        return pr_df
+
     # Convert date columns to datetime
     date_columns = ['created_at', 'updated_at', 'closed_at', 'merged_at']
-    for col in date_columns:
-        pr_df[col] = pd.to_datetime(pr_df[col], utc=True)
+    pr_df = convert_to_datetime(pr_df, date_columns)
 
     # Ensure 'number' is integer
     pr_df['number'] = pd.to_numeric(pr_df['number'], errors='coerce').astype('Int64')
@@ -111,7 +120,6 @@ def clean_pull_requests_data(pr_df):
 
     return pr_df
 
-
 def remove_duplicates(df, subset):
     """
     Remove duplicate rows based on specified columns.
@@ -119,22 +127,26 @@ def remove_duplicates(df, subset):
     return df.drop_duplicates(subset=subset, keep='last')
 
 
-def handle_outliers(df, column, method='iqr', threshold=1.5):
+def handle_outliers(df, column, method='percentile', threshold=0.99):
     """
     Handle outliers in the specified column.
     """
-    if method == 'iqr':
+    if method == 'percentile':
+        upper_bound = df[column].quantile(threshold)  # Top 1% as outliers
+        df[column] = df[column].clip(upper=upper_bound)
+    elif method == 'log_transform':
+        df[column] = np.log1p(df[column])  # Logarithmic transformation
+    elif method == 'iqr':
         Q1 = df[column].quantile(0.25)
         Q3 = df[column].quantile(0.75)
         IQR = Q3 - Q1
-        lower_bound = Q1 - threshold * IQR
-        upper_bound = Q3 + threshold * IQR
+        lower_bound = Q1 - 1.5 * IQR
+        upper_bound = Q3 + 1.5 * IQR
         df[column] = df[column].clip(lower=lower_bound, upper=upper_bound)
     elif method == 'zscore':
         z_scores = np.abs((df[column] - df[column].mean()) / df[column].std())
         df[column] = df[column].mask(z_scores > threshold, df[column].median())
     return df
-
 
 def clean_all_data():
     """
@@ -162,7 +174,6 @@ def clean_all_data():
         repo_df_clean = handle_outliers(repo_df_clean, column)
 
     return repo_df_clean, issues_df_clean, pr_df_clean
-
 
 if __name__ == "__main__":
     repo_clean, issues_clean, pr_clean = clean_all_data()

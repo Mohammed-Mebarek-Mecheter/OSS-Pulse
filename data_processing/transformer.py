@@ -18,7 +18,6 @@ POCKETBASE_PASSWORD = os.getenv("POCKETBASE_PASSWORD")
 # Initialize PocketBase client
 pb = PocketBase(POCKETBASE_URL)
 
-
 def authenticate_pocketbase():
     try:
         pb.admins.auth_with_password(POCKETBASE_EMAIL, POCKETBASE_PASSWORD)
@@ -27,15 +26,15 @@ def authenticate_pocketbase():
         print(f"Failed to authenticate with PocketBase: {e}")
         raise
 
-
 def calculate_repo_metrics(repo_df):
     """
     Calculate additional metrics for repositories.
     """
+    # Ensure datetime conversion
+    repo_df['created_at'] = pd.to_datetime(repo_df['created_at'], errors='coerce', utc=True)
+
     # Calculate age of the repository in days
-    repo_df['age_days'] = (
-                datetime.now(repo_df['created_at'].dt.tz).replace(tzinfo=None) - repo_df['created_at'].dt.tz_localize(
-            None)).dt.days
+    repo_df['age_days'] = (datetime.now(tz=repo_df['created_at'].dt.tz) - repo_df['created_at']).dt.days
 
     # Calculate stars per day
     repo_df['stars_per_day'] = repo_df['stars'] / repo_df['age_days']
@@ -48,23 +47,23 @@ def calculate_repo_metrics(repo_df):
 
     return repo_df
 
-
 def calculate_issue_metrics(issues_df):
     """
     Calculate additional metrics for issues.
     """
+    # Ensure datetime conversion
+    issues_df['created_at'] = pd.to_datetime(issues_df['created_at'], errors='coerce', utc=True)
+    issues_df['closed_at'] = pd.to_datetime(issues_df['closed_at'], errors='coerce', utc=True)
+
     # Calculate issue age in days
-    issues_df['age_days'] = (datetime.now(issues_df['created_at'].dt.tz).replace(tzinfo=None) - issues_df[
-        'created_at'].dt.tz_localize(None)).dt.days
+    issues_df['age_days'] = (datetime.now(tz=issues_df['created_at'].dt.tz) - issues_df['created_at']).dt.days
 
     # Calculate time to close for closed issues
-    closed_issues = issues_df[issues_df['state'] == 'closed']
-    closed_issues['time_to_close_days'] = (closed_issues['closed_at'] - closed_issues[
-        'created_at']).dt.total_seconds() / (24 * 60 * 60)
+    closed_issues = issues_df[issues_df['state'] == 'closed'].copy()
+    closed_issues['time_to_close_days'] = (closed_issues['closed_at'] - closed_issues['created_at']).dt.total_seconds() / (24 * 60 * 60)
     issues_df = issues_df.merge(closed_issues[['id', 'time_to_close_days']], on='id', how='left')
 
     return issues_df
-
 
 def calculate_pr_metrics(pr_df):
     """
@@ -72,45 +71,49 @@ def calculate_pr_metrics(pr_df):
     """
     # Calculate PR age in days
     pr_df['age_days'] = (
-                datetime.now(pr_df['created_at'].dt.tz).replace(tzinfo=None) - pr_df['created_at'].dt.tz_localize(
-            None)).dt.days
+        datetime.now(pr_df['created_at'].dt.tz).replace(tzinfo=None) - pr_df['created_at'].dt.tz_localize(None)
+    ).dt.days
 
     # Calculate time to close/merge for closed/merged PRs
     closed_prs = pr_df[pr_df['state'].isin(['closed', 'merged'])]
-    closed_prs['time_to_close_days'] = (closed_prs['closed_at'] - closed_prs['created_at']).dt.total_seconds() / (
-                24 * 60 * 60)
+    closed_prs['time_to_close_days'] = (
+        closed_prs['closed_at'] - closed_prs['created_at']
+    ).dt.total_seconds() / (24 * 60 * 60)
     pr_df = pr_df.merge(closed_prs[['id', 'time_to_close_days']], on='id', how='left')
 
-    # Calculate merge rate
+    # Add the is_merged column
     pr_df['is_merged'] = pr_df['state'] == 'merged'
 
     return pr_df
-
 
 def categorize_repositories(repo_df):
     """
     Categorize repositories based on their metrics.
     """
-    # Categorize by size (stars)
-    repo_df['size_category'] = pd.cut(repo_df['stars'],
-                                      bins=[0, 10, 100, 1000, np.inf],
-                                      labels=['small', 'medium', 'large', 'very_large'])
+    # Use logarithmic scaling or percentiles for dynamic categorization
+    repo_df['log_stars'] = np.log1p(repo_df['stars'])  # Logarithmic scaling to manage large ranges
+
+    # Categorize by size using percentiles
+    repo_df['size_category'] = pd.qcut(repo_df['stars'], q=4, labels=['small', 'medium', 'large', 'very_large'])
 
     # Categorize by activity (update frequency)
-    repo_df['days_since_update'] = (
-                datetime.now(repo_df['updated_at'].dt.tz).replace(tzinfo=None) - repo_df['updated_at'].dt.tz_localize(
-            None)).dt.days
+    repo_df['days_since_update'] = (datetime.now() - repo_df['updated_at']).dt.days
     repo_df['activity_category'] = pd.cut(repo_df['days_since_update'],
                                           bins=[0, 7, 30, 90, np.inf],
                                           labels=['very_active', 'active', 'less_active', 'inactive'])
 
     return repo_df
 
-
 def aggregate_repo_data(repo_df, issues_df, pr_df):
     """
     Aggregate issue and PR data into repository dataframe.
     """
+    # Ensure 'time_to_close_days' is available before aggregation
+    if 'time_to_close_days' not in issues_df.columns:
+        issues_df['time_to_close_days'] = np.nan
+    if 'time_to_close_days' not in pr_df.columns:
+        pr_df['time_to_close_days'] = np.nan
+
     # Aggregate issue data
     issue_agg = issues_df.groupby('repository').agg({
         'id': 'count',
@@ -139,7 +142,6 @@ def aggregate_repo_data(repo_df, issues_df, pr_df):
 
     return repo_df
 
-
 def transform_all_data(repo_df, issues_df, pr_df):
     """
     Main function to transform all datasets.
@@ -149,6 +151,9 @@ def transform_all_data(repo_df, issues_df, pr_df):
     issues_df = calculate_issue_metrics(issues_df)
     pr_df = calculate_pr_metrics(pr_df)
 
+    # Handle outliers specifically for stars or other relevant columns
+    repo_df = handle_outliers(repo_df, 'stars', method='percentile', threshold=0.99)
+
     # Categorize repositories
     repo_df = categorize_repositories(repo_df)
 
@@ -156,7 +161,6 @@ def transform_all_data(repo_df, issues_df, pr_df):
     repo_df = aggregate_repo_data(repo_df, issues_df, pr_df)
 
     return repo_df, issues_df, pr_df
-
 
 def update_pocketbase_data(df, collection_name):
     """
@@ -168,9 +172,8 @@ def update_pocketbase_data(df, collection_name):
         except ClientResponseError as e:
             print(f"Error updating record in {collection_name}: {e}")
 
-
 if __name__ == "__main__":
-    from cleaner import clean_all_data
+    from cleaner import clean_all_data, handle_outliers
 
     authenticate_pocketbase()
 
