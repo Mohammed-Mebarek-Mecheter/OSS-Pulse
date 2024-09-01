@@ -30,9 +30,7 @@ def authenticate_pocketbase():
         raise
 
 def fetch_data_from_pocketbase(collection_name):
-    """
-    Fetch data from a PocketBase collection and return as a DataFrame.
-    """
+    """Fetch data from a PocketBase collection and return as a DataFrame."""
     try:
         records = pb.collection(collection_name).get_full_list()
         df = pd.DataFrame([record.dict() for record in records])
@@ -42,9 +40,7 @@ def fetch_data_from_pocketbase(collection_name):
         return pd.DataFrame()
 
 def convert_to_datetime(df, columns):
-    """
-    Convert specified columns to datetime with UTC timezone.
-    """
+    """Convert specified columns to datetime with UTC timezone."""
     for col in columns:
         if col in df.columns:
             try:
@@ -54,9 +50,7 @@ def convert_to_datetime(df, columns):
     return df
 
 def clean_repository_data(repo_df):
-    """
-    Clean the repository dataframe.
-    """
+    """Clean the repository dataframe."""
     if repo_df.empty:
         logging.warning("Repository DataFrame is empty")
         return repo_df
@@ -74,9 +68,7 @@ def clean_repository_data(repo_df):
     return repo_df
 
 def clean_issues_data(issues_df):
-    """
-    Clean the issues dataframe.
-    """
+    """Clean the issues dataframe."""
     if issues_df.empty:
         logging.warning("Issues DataFrame is empty")
         return issues_df
@@ -96,9 +88,7 @@ def clean_issues_data(issues_df):
     return issues_df
 
 def clean_pull_requests_data(pr_df):
-    """
-    Clean the pull requests dataframe.
-    """
+    """Clean the pull requests dataframe."""
     if pr_df.empty:
         logging.warning("Pull Requests DataFrame is empty")
         return pr_df
@@ -120,10 +110,8 @@ def clean_pull_requests_data(pr_df):
 
     return pr_df
 
-def handle_outliers(df, column, method='percentile', threshold=0.99):
-    """
-    Handle outliers in the specified column.
-    """
+def handle_outliers(df, column, method='percentile', threshold=0.99, multiplier=1.5):
+    """Handle outliers in the specified column."""
     if method == 'percentile':
         upper_bound = df[column].quantile(threshold)
         df[column] = df[column].clip(upper=upper_bound)
@@ -133,18 +121,24 @@ def handle_outliers(df, column, method='percentile', threshold=0.99):
         Q1 = df[column].quantile(0.25)
         Q3 = df[column].quantile(0.75)
         IQR = Q3 - Q1
-        lower_bound = Q1 - 1.5 * IQR
-        upper_bound = Q3 + 1.5 * IQR
+        lower_bound = Q1 - multiplier * IQR
+        upper_bound = Q3 + multiplier * IQR
         df[column] = df[column].clip(lower=lower_bound, upper=upper_bound)
     elif method == 'zscore':
         z_scores = np.abs((df[column] - df[column].mean()) / df[column].std())
         df[column] = df[column].mask(z_scores > threshold, df[column].median())
     return df
 
+def validate_data(df):
+    """Custom validation to ensure data integrity."""
+    if 'created_at' in df.columns and 'closed_at' in df.columns:
+        invalid_rows = df[df['created_at'] > df['closed_at']]
+        if not invalid_rows.empty:
+            logging.warning(f"Found {len(invalid_rows)} rows where created_at > closed_at")
+    return df
+
 def clean_all_data():
-    """
-    Main function to clean all datasets.
-    """
+    """Main function to clean all datasets."""
     authenticate_pocketbase()
 
     # Fetch data from PocketBase
@@ -162,9 +156,13 @@ def clean_all_data():
     issues_df_clean = issues_df_clean.drop_duplicates(subset=['number', 'repository'], keep='last')
     pr_df_clean = pr_df_clean.drop_duplicates(subset=['number', 'repository'], keep='last')
 
-    # Handle outliers in numeric columns
+    # Handle outliers in numeric columns with more robust handling
     for column in ['stars', 'forks', 'open_issues']:
-        repo_df_clean = handle_outliers(repo_df_clean, column)
+        repo_df_clean = handle_outliers(repo_df_clean, column, method='iqr')
+
+    # Validate data integrity
+    issues_df_clean = validate_data(issues_df_clean)
+    pr_df_clean = validate_data(pr_df_clean)
 
     return repo_df_clean, issues_df_clean, pr_df_clean
 

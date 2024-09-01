@@ -1,3 +1,5 @@
+# test_data_collection.py
+import os
 import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timedelta
@@ -10,6 +12,14 @@ from data_collection.github_api import (
     process_issues_data,
     process_pull_requests_data,
     fetch_and_process_data
+)
+from data_collection.data_inserter import (
+    authenticate_pocketbase,
+    insert_repository_data,
+    insert_issues_data,
+    insert_pull_requests_data,
+    insert_data,
+    pb
 )
 
 # Mock data consistent with GitHub API responses
@@ -49,6 +59,81 @@ MOCK_PR_DATA = [
         "merged_at": None
     }
 ]
+
+@pytest.fixture
+def mock_pb():
+    with patch('data_collection.data_inserter.pb') as mock:
+        yield mock
+
+def test_authenticate_pocketbase(mock_pb):
+    authenticate_pocketbase()
+    mock_pb.admins.auth_with_password.assert_called_once()
+
+def test_insert_repository_data_create(mock_pb):
+    mock_repo_data = process_repository_data(MOCK_REPO_DATA)
+    mock_pb.collection.return_value.get_first_list_item.return_value = None
+    mock_pb.collection.return_value.create.return_value.id = "mock_id"
+
+    repo_id = insert_repository_data(mock_repo_data)
+
+    mock_pb.collection.return_value.get_first_list_item.assert_called_once()
+    mock_pb.collection.return_value.create.assert_called_once()
+    create_args = mock_pb.collection.return_value.create.call_args[0][0]
+    assert create_args['id'] == str(MOCK_REPO_DATA['id'])
+    assert repo_id == "mock_id"
+
+def test_insert_repository_data_update(mock_pb):
+    mock_repo_data = process_repository_data(MOCK_REPO_DATA)
+    mock_pb.collection.return_value.get_first_list_item.return_value = MagicMock(id="existing_id")
+    mock_pb.collection.return_value.update.return_value.id = "existing_id"
+
+    repo_id = insert_repository_data(mock_repo_data)
+
+    mock_pb.collection.return_value.get_first_list_item.assert_called_once()
+    mock_pb.collection.return_value.update.assert_called_once()
+    update_args = mock_pb.collection.return_value.update.call_args[0]
+    assert update_args[0] == "existing_id"
+    assert update_args[1]['id'] == str(MOCK_REPO_DATA['id'])
+    assert repo_id == "existing_id"
+
+@patch('data_collection.data_inserter.pb')
+def test_insert_issues_data(mock_pb):
+    repo_id = "mock_repo_id"
+    mock_pb.collection.return_value.create_batch.return_value = True
+
+    insert_issues_data(MOCK_ISSUE_DATA, repo_id)
+
+    mock_pb.collection.return_value.create_batch.assert_called_once()
+
+@patch('data_collection.data_inserter.pb')
+def test_insert_pull_requests_data(mock_pb):
+    repo_id = "mock_repo_id"
+    mock_pb.collection.return_value.create_batch.return_value = True
+
+    insert_pull_requests_data(MOCK_PR_DATA, repo_id)
+
+    mock_pb.collection.return_value.create_batch.assert_called_once()
+
+@patch('data_collection.data_inserter.authenticate_pocketbase')
+@patch('data_collection.data_inserter.fetch_and_process_data')
+@patch('data_collection.data_inserter.insert_repository_data')
+@patch('data_collection.data_inserter.insert_issues_data')
+@patch('data_collection.data_inserter.insert_pull_requests_data')
+def test_insert_data(mock_insert_pr, mock_insert_issues, mock_insert_repo, mock_fetch_data, mock_authenticate):
+    mock_fetch_data.return_value = {
+        "repository": MOCK_REPO_DATA,
+        "issues": MOCK_ISSUE_DATA,
+        "pull_requests": MOCK_PR_DATA
+    }
+    mock_insert_repo.return_value = "mock_repo_id"
+
+    insert_data("octocat", "Hello-World")
+
+    mock_authenticate.assert_called_once()
+    mock_fetch_data.assert_called_once_with("octocat", "Hello-World")
+    mock_insert_repo.assert_called_once_with(MOCK_REPO_DATA)
+    mock_insert_issues.assert_called_once_with(MOCK_ISSUE_DATA, "mock_repo_id")
+    mock_insert_pr.assert_called_once_with(MOCK_PR_DATA, "mock_repo_id")
 
 @patch('data_collection.github_api.requests.get')
 def test_call_github_api(mock_get):

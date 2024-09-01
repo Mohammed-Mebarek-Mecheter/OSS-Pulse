@@ -1,9 +1,9 @@
+# github_api.py
 import os
-import time
-from datetime import datetime, timedelta
+import logging
 import requests
-import pandas as pd
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
 from ratelimit import limits, sleep_and_retry
 
 # Load environment variables
@@ -17,13 +17,20 @@ HEADERS = {
     "Accept": "application/vnd.github.v3+json"
 }
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 # Rate limiting: 5000 requests per hour
 @sleep_and_retry
 @limits(calls=5000, period=3600)
 def call_github_api(url):
-    response = requests.get(url, headers=HEADERS)
-    response.raise_for_status()
-    return response.json()
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=10)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error calling GitHub API: {e}")
+        raise
 
 def get_repository_data(owner, repo):
     url = f"{GITHUB_API_URL}/repos/{owner}/{repo}"
@@ -35,7 +42,7 @@ def get_issues_data(owner, repo, state="all", since=None):
     issues = []
 
     while url:
-        response = requests.get(url, headers=HEADERS, params=params)
+        response = requests.get(url, headers=HEADERS, params=params, timeout=10)
         response.raise_for_status()
         issues.extend(response.json())
         url = response.links.get("next", {}).get("url")
@@ -49,7 +56,7 @@ def get_pull_requests_data(owner, repo, state="all"):
     pull_requests = []
 
     while url:
-        response = requests.get(url, headers=HEADERS, params=params)
+        response = requests.get(url, headers=HEADERS, params=params, timeout=10)
         response.raise_for_status()
         pull_requests.extend(response.json())
         url = response.links.get("next", {}).get("url")
@@ -62,7 +69,7 @@ def process_repository_data(repo_data):
         "id": repo_data["id"],
         "name": repo_data["name"],
         "full_name": repo_data["full_name"],
-        "description": repo_data.get("description"),  # Optional field
+        "description": repo_data.get("description"),
         "stars": repo_data["stargazers_count"],
         "forks": repo_data["forks_count"],
         "open_issues": repo_data["open_issues_count"],
@@ -76,12 +83,12 @@ def process_issues_data(issues_data):
             "id": issue["id"],
             "number": issue["number"],
             "title": issue["title"],
-            "state": issue["state"],  # Make sure it’s 'open' or 'closed'
+            "state": issue["state"],
             "created_at": issue["created_at"],
             "updated_at": issue["updated_at"],
-            "closed_at": issue.get("closed_at")  # Optional field
+            "closed_at": issue.get("closed_at")
         }
-        for issue in issues_data if "pull_request" not in issue  # Filter out PRs
+        for issue in issues_data if "pull_request" not in issue
     ]
 
 def process_pull_requests_data(prs_data):
@@ -90,26 +97,29 @@ def process_pull_requests_data(prs_data):
             "id": pr["id"],
             "number": pr["number"],
             "title": pr["title"],
-            "state": "merged" if pr.get("merged_at") else pr["state"],  # State should consider 'merged'
+            "state": "merged" if pr.get("merged_at") else pr["state"],
             "created_at": pr["created_at"],
             "updated_at": pr["updated_at"],
-            "closed_at": pr.get("closed_at"),  # Optional field
-            "merged_at": pr.get("merged_at")  # Optional field
+            "closed_at": pr.get("closed_at"),
+            "merged_at": pr.get("merged_at")
         }
         for pr in prs_data
     ]
 
 def fetch_and_process_data(owner, repo):
+    logging.info(f"Fetching data for {owner}/{repo}")
+
     repo_data = get_repository_data(owner, repo)
     processed_repo_data = process_repository_data(repo_data)
 
-    # Fetch issues and PRs from the last 30 days
     since = (datetime.now() - timedelta(days=30)).isoformat()
     issues_data = get_issues_data(owner, repo, since=since)
     prs_data = get_pull_requests_data(owner, repo)
 
     processed_issues_data = process_issues_data(issues_data)
     processed_prs_data = process_pull_requests_data(prs_data)
+
+    logging.info(f"Fetched and processed data for {owner}/{repo}")
 
     return {
         "repository": processed_repo_data,
@@ -118,11 +128,9 @@ def fetch_and_process_data(owner, repo):
     }
 
 if __name__ == "__main__":
-    # Example usage
     owner = "tensorflow"
     repo = "tensorflow"
     data = fetch_and_process_data(owner, repo)
-    print(f"Fetched data for {owner}/{repo}")
-    print(f"Repository data: {data['repository']}")
-    print(f"Number of issues fetched: {len(data['issues'])}")
-    print(f"Number of pull requests fetched: {len(data['pull_requests'])}")
+    logging.info(f"Repository data: {data['repository']}")
+    logging.info(f"Number of issues fetched: {len(data['issues'])}")
+    logging.info(f"Number of pull requests fetched: {len(data['pull_requests'])}")
