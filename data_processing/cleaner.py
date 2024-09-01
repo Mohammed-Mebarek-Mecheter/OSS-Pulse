@@ -47,7 +47,10 @@ def convert_to_datetime(df, columns):
     """
     for col in columns:
         if col in df.columns:
-            df[col] = pd.to_datetime(df[col], errors='coerce', utc=True)
+            try:
+                df[col] = pd.to_datetime(df[col], errors='coerce', utc=True)
+            except Exception as e:
+                logging.error(f"Error converting column {col} to datetime: {e}")
     return df
 
 def clean_repository_data(repo_df):
@@ -58,19 +61,15 @@ def clean_repository_data(repo_df):
         logging.warning("Repository DataFrame is empty")
         return repo_df
 
+    # Fill NaN in description before type conversion
+    repo_df['description'] = repo_df['description'].fillna('')
+
     # Convert date columns to datetime
-    date_columns = ['created_at', 'updated_at']
-    repo_df = convert_to_datetime(repo_df, date_columns)
+    repo_df = convert_to_datetime(repo_df, ['created_at', 'updated_at'])
 
-    # Ensure numeric columns are of the correct type
+    # Convert numeric columns to correct types and fill NaN with 0
     numeric_columns = ['stars', 'forks', 'open_issues']
-    repo_df[numeric_columns] = repo_df[numeric_columns].apply(pd.to_numeric, errors='coerce')
-
-    # Fill NaN values in numeric columns with 0
-    repo_df[numeric_columns] = repo_df[numeric_columns].fillna(0)
-
-    # Ensure 'description' is a string and replace NaN with empty string
-    repo_df['description'] = repo_df['description'].fillna('').astype(str)
+    repo_df[numeric_columns] = repo_df[numeric_columns].apply(pd.to_numeric, errors='coerce').fillna(0)
 
     return repo_df
 
@@ -82,18 +81,17 @@ def clean_issues_data(issues_df):
         logging.warning("Issues DataFrame is empty")
         return issues_df
 
+    # Fill NaN in title before type conversion
+    issues_df['title'] = issues_df['title'].fillna('')
+
     # Convert date columns to datetime
-    date_columns = ['created_at', 'updated_at', 'closed_at']
-    issues_df = convert_to_datetime(issues_df, date_columns)
+    issues_df = convert_to_datetime(issues_df, ['created_at', 'updated_at', 'closed_at'])
 
     # Ensure 'number' is integer
     issues_df['number'] = pd.to_numeric(issues_df['number'], errors='coerce').astype('Int64')
 
-    # Ensure 'state' is a valid value
+    # Ensure 'state' is valid
     issues_df['state'] = issues_df['state'].apply(lambda x: x if x in ['open', 'closed'] else 'unknown')
-
-    # Ensure 'title' is a string and replace NaN with empty string
-    issues_df['title'] = issues_df['title'].fillna('').astype(str)
 
     return issues_df
 
@@ -105,37 +103,32 @@ def clean_pull_requests_data(pr_df):
         logging.warning("Pull Requests DataFrame is empty")
         return pr_df
 
+    # Fill NaN in title before type conversion
+    pr_df['title'] = pr_df['title'].fillna('')
+
     # Convert date columns to datetime
-    date_columns = ['created_at', 'updated_at', 'closed_at', 'merged_at']
-    pr_df = convert_to_datetime(pr_df, date_columns)
+    pr_df = convert_to_datetime(pr_df, ['created_at', 'updated_at', 'closed_at', 'merged_at'])
 
     # Ensure 'number' is integer
     pr_df['number'] = pd.to_numeric(pr_df['number'], errors='coerce').astype('Int64')
 
-    # Ensure 'state' is a valid value
+    # Ensure 'state' is valid
     pr_df['state'] = pr_df['state'].apply(lambda x: x if x in ['open', 'closed', 'merged'] else 'unknown')
 
-    # Ensure 'title' is a string and replace NaN with empty string
-    pr_df['title'] = pr_df['title'].fillna('').astype(str)
+    # Add 'is_merged' column
+    pr_df['is_merged'] = pr_df['state'] == 'merged'
 
     return pr_df
-
-def remove_duplicates(df, subset):
-    """
-    Remove duplicate rows based on specified columns.
-    """
-    return df.drop_duplicates(subset=subset, keep='last')
-
 
 def handle_outliers(df, column, method='percentile', threshold=0.99):
     """
     Handle outliers in the specified column.
     """
     if method == 'percentile':
-        upper_bound = df[column].quantile(threshold)  # Top 1% as outliers
+        upper_bound = df[column].quantile(threshold)
         df[column] = df[column].clip(upper=upper_bound)
     elif method == 'log_transform':
-        df[column] = np.log1p(df[column])  # Logarithmic transformation
+        df[column] = np.log1p(df[column])
     elif method == 'iqr':
         Q1 = df[column].quantile(0.25)
         Q3 = df[column].quantile(0.75)
@@ -165,9 +158,9 @@ def clean_all_data():
     pr_df_clean = clean_pull_requests_data(pr_df)
 
     # Remove duplicates
-    repo_df_clean = remove_duplicates(repo_df_clean, subset=['full_name'])
-    issues_df_clean = remove_duplicates(issues_df_clean, subset=['number', 'repository'])
-    pr_df_clean = remove_duplicates(pr_df_clean, subset=['number', 'repository'])
+    repo_df_clean = repo_df_clean.drop_duplicates(subset=['full_name'], keep='last')
+    issues_df_clean = issues_df_clean.drop_duplicates(subset=['number', 'repository'], keep='last')
+    pr_df_clean = pr_df_clean.drop_duplicates(subset=['number', 'repository'], keep='last')
 
     # Handle outliers in numeric columns
     for column in ['stars', 'forks', 'open_issues']:

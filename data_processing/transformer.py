@@ -1,7 +1,5 @@
 # transformer.py
 import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
 from pocketbase import PocketBase
 from pocketbase.client import ClientResponseError
 import os
@@ -26,154 +24,64 @@ def authenticate_pocketbase():
         print(f"Failed to authenticate with PocketBase: {e}")
         raise
 
-def calculate_repo_metrics(repo_df):
-    """
-    Calculate additional metrics for repositories.
-    """
-    # Ensure datetime conversion
-    repo_df['created_at'] = pd.to_datetime(repo_df['created_at'], errors='coerce', utc=True)
-
-    # Calculate age of the repository in days
-    repo_df['age_days'] = (datetime.now(tz=repo_df['created_at'].dt.tz) - repo_df['created_at']).dt.days
-
-    # Calculate stars per day
-    repo_df['stars_per_day'] = repo_df['stars'] / repo_df['age_days']
-
-    # Calculate forks per star
-    repo_df['forks_per_star'] = repo_df['forks'] / repo_df['stars'].replace(0, 1)  # Avoid division by zero
-
-    # Calculate issue-to-star ratio
-    repo_df['issue_to_star_ratio'] = repo_df['open_issues'] / repo_df['stars'].replace(0, 1)  # Avoid division by zero
-
-    return repo_df
-
-def calculate_issue_metrics(issues_df):
-    """
-    Calculate additional metrics for issues.
-    """
-    # Ensure datetime conversion
-    issues_df['created_at'] = pd.to_datetime(issues_df['created_at'], errors='coerce', utc=True)
-    issues_df['closed_at'] = pd.to_datetime(issues_df['closed_at'], errors='coerce', utc=True)
-
-    # Calculate issue age in days
-    issues_df['age_days'] = (datetime.now(tz=issues_df['created_at'].dt.tz) - issues_df['created_at']).dt.days
-
-    # Calculate time to close for closed issues
-    closed_issues = issues_df[issues_df['state'] == 'closed'].copy()
-    closed_issues['time_to_close_days'] = (closed_issues['closed_at'] - closed_issues['created_at']).dt.total_seconds() / (24 * 60 * 60)
-    issues_df = issues_df.merge(closed_issues[['id', 'time_to_close_days']], on='id', how='left')
-
+def calculate_issue_resolution_time(issues_df):
+    """Calculate issue resolution time in days."""
+    issues_df['created_at'] = pd.to_datetime(issues_df['created_at'], utc=True)
+    issues_df['closed_at'] = pd.to_datetime(issues_df['closed_at'], utc=True)
+    issues_df['resolution_time_days'] = (issues_df['closed_at'] - issues_df['created_at']).dt.total_seconds() / (
+                24 * 3600)
     return issues_df
 
-def calculate_pr_metrics(pr_df):
-    """
-    Calculate additional metrics for pull requests.
-    """
-    # Calculate PR age in days
-    pr_df['age_days'] = (
-        datetime.now(pr_df['created_at'].dt.tz).replace(tzinfo=None) - pr_df['created_at'].dt.tz_localize(None)
-    ).dt.days
 
-    # Calculate time to close/merge for closed/merged PRs
-    closed_prs = pr_df[pr_df['state'].isin(['closed', 'merged'])]
-    closed_prs['time_to_close_days'] = (
-        closed_prs['closed_at'] - closed_prs['created_at']
-    ).dt.total_seconds() / (24 * 60 * 60)
-    pr_df = pr_df.merge(closed_prs[['id', 'time_to_close_days']], on='id', how='left')
-
-    # Add the is_merged column
-    pr_df['is_merged'] = pr_df['state'] == 'merged'
-
+def calculate_pr_merge_time(pr_df):
+    """Calculate pull request merge time in days."""
+    pr_df['created_at'] = pd.to_datetime(pr_df['created_at'], utc=True)
+    pr_df['merged_at'] = pd.to_datetime(pr_df['merged_at'], utc=True)
+    pr_df['merge_time_days'] = (pr_df['merged_at'] - pr_df['created_at']).dt.total_seconds() / (24 * 3600)
     return pr_df
 
-def categorize_repositories(repo_df):
-    """
-    Categorize repositories based on their metrics.
-    """
-    # Use logarithmic scaling or percentiles for dynamic categorization
-    repo_df['log_stars'] = np.log1p(repo_df['stars'])  # Logarithmic scaling to manage large ranges
+def aggregate_repository_metrics(repo_df, issues_df, pr_df):
+    """Aggregate metrics for each repository."""
+    # Calculate average issue resolution time
+    avg_issue_resolution = issues_df.groupby('repository')['resolution_time_days'].mean().reset_index()
+    avg_issue_resolution.columns = ['id', 'avg_issue_resolution_days']
 
-    # Categorize by size using percentiles
-    repo_df['size_category'] = pd.qcut(repo_df['stars'], q=4, labels=['small', 'medium', 'large', 'very_large'])
+    # Calculate average PR merge time
+    avg_pr_merge_time = pr_df.groupby('repository')['merge_time_days'].mean().reset_index()
+    avg_pr_merge_time.columns = ['id', 'avg_pr_merge_time_days']
 
-    # Categorize by activity (update frequency)
-    repo_df['days_since_update'] = (datetime.now() - repo_df['updated_at']).dt.days
-    repo_df['activity_category'] = pd.cut(repo_df['days_since_update'],
-                                          bins=[0, 7, 30, 90, np.inf],
-                                          labels=['very_active', 'active', 'less_active', 'inactive'])
+    # Merge metrics with repository dataframe
+    result_df = repo_df.merge(avg_issue_resolution, on='id', how='left')
+    result_df = result_df.merge(avg_pr_merge_time, on='id', how='left')
 
-    return repo_df
+    return result_df
 
-def aggregate_repo_data(repo_df, issues_df, pr_df):
-    """
-    Aggregate issue and PR data into repository dataframe.
-    """
-    # Ensure 'time_to_close_days' is available before aggregation
-    if 'time_to_close_days' not in issues_df.columns:
-        issues_df['time_to_close_days'] = np.nan
-    if 'time_to_close_days' not in pr_df.columns:
-        pr_df['time_to_close_days'] = np.nan
+def calculate_contributor_activity(issues_df, pr_df):
+    """Calculate the number of contributors per repository."""
+    issues_contributors = issues_df.groupby('repository')['user'].nunique().reset_index()
+    issues_contributors.columns = ['repository', 'issue_contributors']
 
-    # Aggregate issue data
-    issue_agg = issues_df.groupby('repository').agg({
-        'id': 'count',
-        'state': lambda x: (x == 'open').mean(),
-        'time_to_close_days': 'mean'
-    }).rename(columns={
-        'id': 'total_issues',
-        'state': 'open_issue_rate',
-        'time_to_close_days': 'avg_time_to_close_issue'
-    })
+    pr_contributors = pr_df.groupby('repository')['user'].nunique().reset_index()
+    pr_contributors.columns = ['repository', 'pr_contributors']
 
-    # Aggregate PR data
-    pr_agg = pr_df.groupby('repository').agg({
-        'id': 'count',
-        'is_merged': 'mean',
-        'time_to_close_days': 'mean'
-    }).rename(columns={
-        'id': 'total_prs',
-        'is_merged': 'merge_rate',
-        'time_to_close_days': 'avg_time_to_close_pr'
-    })
+    contributors_df = issues_contributors.merge(pr_contributors, on='repository', how='outer')
+    contributors_df.fillna(0, inplace=True)
+    contributors_df['total_contributors'] = contributors_df['issue_contributors'] + contributors_df['pr_contributors']
 
-    # Merge aggregated data into repo_df
-    repo_df = repo_df.merge(issue_agg, left_on='id', right_index=True, how='left')
-    repo_df = repo_df.merge(pr_agg, left_on='id', right_index=True, how='left')
-
-    return repo_df
+    return contributors_df
 
 def transform_all_data(repo_df, issues_df, pr_df):
-    """
-    Main function to transform all datasets.
-    """
-    # Calculate metrics for each dataset
-    repo_df = calculate_repo_metrics(repo_df)
-    issues_df = calculate_issue_metrics(issues_df)
-    pr_df = calculate_pr_metrics(pr_df)
-
-    # Handle outliers specifically for stars or other relevant columns
-    repo_df = handle_outliers(repo_df, 'stars', method='percentile', threshold=0.99)
-
-    # Categorize repositories
-    repo_df = categorize_repositories(repo_df)
-
-    # Aggregate data
-    repo_df = aggregate_repo_data(repo_df, issues_df, pr_df)
-
+    """Apply all transformations to the data."""
+    issues_df = calculate_issue_resolution_time(issues_df)
+    pr_df = calculate_pr_merge_time(pr_df)
+    repo_df = aggregate_repository_metrics(repo_df, issues_df, pr_df)
+    contributors_df = calculate_contributor_activity(issues_df, pr_df)
+    repo_df = repo_df.merge(contributors_df, left_on='id', right_on='repository', how='left')
+    repo_df.drop(columns=['repository'], inplace=True, errors='ignore')
     return repo_df, issues_df, pr_df
 
-def update_pocketbase_data(df, collection_name):
-    """
-    Update PocketBase data with transformed dataframe.
-    """
-    for _, row in df.iterrows():
-        try:
-            pb.collection(collection_name).update(row['id'], row.to_dict())
-        except ClientResponseError as e:
-            print(f"Error updating record in {collection_name}: {e}")
-
 if __name__ == "__main__":
-    from cleaner import clean_all_data, handle_outliers
+    from cleaner import clean_all_data
 
     authenticate_pocketbase()
 
@@ -182,10 +90,5 @@ if __name__ == "__main__":
 
     # Transform data
     repo_transformed, issues_transformed, pr_transformed = transform_all_data(repo_clean, issues_clean, pr_clean)
-
-    # Update PocketBase with transformed data
-    update_pocketbase_data(repo_transformed, 'repositories')
-    update_pocketbase_data(issues_transformed, 'issues')
-    update_pocketbase_data(pr_transformed, 'pull_requests')
 
     print("Data transformation and update completed.")
