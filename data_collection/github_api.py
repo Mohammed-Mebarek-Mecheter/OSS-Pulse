@@ -46,7 +46,8 @@ def get_issues_data(owner, repo, state="all", since=None):
         response.raise_for_status()
         issues.extend(response.json())
         url = response.links.get("next", {}).get("url")
-        params = {}  # Clear params for subsequent requests
+        if not url:
+            logging.info(f"All pages fetched for {repo}: {len(issues)} issues.")
 
     return issues
 
@@ -60,13 +61,13 @@ def get_pull_requests_data(owner, repo, state="all"):
         response.raise_for_status()
         pull_requests.extend(response.json())
         url = response.links.get("next", {}).get("url")
-        params = {}  # Clear params for subsequent requests
+        if not url:
+            logging.info(f"All pages fetched for {repo}: {len(pull_requests)} pull requests.")
 
     return pull_requests
 
 def process_repository_data(repo_data):
     return {
-        "id": repo_data["id"],
         "name": repo_data["name"],
         "full_name": repo_data["full_name"],
         "description": repo_data.get("description"),
@@ -80,7 +81,6 @@ def process_repository_data(repo_data):
 def process_issues_data(issues_data):
     return [
         {
-            "id": issue["id"],
             "number": issue["number"],
             "title": issue["title"],
             "state": issue["state"],
@@ -94,7 +94,6 @@ def process_issues_data(issues_data):
 def process_pull_requests_data(prs_data):
     return [
         {
-            "id": pr["id"],
             "number": pr["number"],
             "title": pr["title"],
             "state": "merged" if pr.get("merged_at") else pr["state"],
@@ -106,7 +105,23 @@ def process_pull_requests_data(prs_data):
         for pr in prs_data
     ]
 
+def check_rate_limit():
+    url = f"{GITHUB_API_URL}/rate_limit"
+    try:
+        response = requests.get(url, headers=HEADERS)
+        response.raise_for_status()
+        data = response.json()
+        rate = data.get('rate', {})
+        remaining = rate.get('remaining', 'Unknown')
+        limit = rate.get('limit', 'Unknown')
+        logging.info(f"GitHub API Rate Limit: {remaining}/{limit}")
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error checking GitHub API rate limit: {e}")
+    except KeyError as e:
+        logging.error(f"Unexpected response format from GitHub API rate limit check: {e}")
+
 def fetch_and_process_data(owner, repo):
+    check_rate_limit()
     logging.info(f"Fetching data for {owner}/{repo}")
 
     repo_data = get_repository_data(owner, repo)
@@ -127,10 +142,5 @@ def fetch_and_process_data(owner, repo):
         "pull_requests": processed_prs_data
     }
 
-if __name__ == "__main__":
-    owner = "tensorflow"
-    repo = "tensorflow"
-    data = fetch_and_process_data(owner, repo)
-    logging.info(f"Repository data: {data['repository']}")
-    logging.info(f"Number of issues fetched: {len(data['issues'])}")
-    logging.info(f"Number of pull requests fetched: {len(data['pull_requests'])}")
+# The owner and repo parameters are no longer hardcoded
+# This script will be triggered with the necessary parameters from job_scheduler.py
