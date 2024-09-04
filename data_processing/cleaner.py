@@ -137,6 +137,7 @@ def validate_data(df):
             logging.warning(f"Found {len(invalid_rows)} rows where created_at > closed_at")
     return df
 
+
 def clean_all_data():
     """Main function to clean all datasets."""
     authenticate_pocketbase()
@@ -145,6 +146,17 @@ def clean_all_data():
     repo_df = fetch_data_from_pocketbase('repositories')
     issues_df = fetch_data_from_pocketbase('issues')
     pr_df = fetch_data_from_pocketbase('pull_requests')
+
+    # Early return if any dataframe is empty to avoid unnecessary processing
+    if repo_df.empty:
+        logging.warning("Repository data is empty. Skipping processing.")
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+
+    if issues_df.empty:
+        logging.warning("Issues data is empty. Skipping processing.")
+
+    if pr_df.empty:
+        logging.warning("Pull Requests data is empty. Skipping processing.")
 
     # Clean each dataset
     repo_df_clean = clean_repository_data(repo_df)

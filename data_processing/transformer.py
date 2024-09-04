@@ -1,4 +1,6 @@
 # transformer.py
+import logging
+
 import pandas as pd
 from pocketbase import PocketBase
 from pocketbase.client import ClientResponseError
@@ -48,13 +50,19 @@ def calculate_pr_merge_time(pr_df):
 
 def aggregate_repository_metrics(repo_df, issues_df, pr_df):
     """Aggregate metrics for each repository."""
-    # Calculate average issue resolution time
-    avg_issue_resolution = issues_df.groupby('repository')['resolution_time_days'].mean().reset_index()
-    avg_issue_resolution.columns = ['id', 'avg_issue_resolution_days']
+    if issues_df.empty:
+        logging.warning("Issues data is empty, skipping issue resolution aggregation.")
+        avg_issue_resolution = pd.DataFrame(columns=['id', 'avg_issue_resolution_days'])
+    else:
+        avg_issue_resolution = issues_df.groupby('repository')['resolution_time_days'].mean().reset_index()
+        avg_issue_resolution.columns = ['id', 'avg_issue_resolution_days']
 
-    # Calculate average PR merge time
-    avg_pr_merge_time = pr_df.groupby('repository')['merge_time_days'].mean().reset_index()
-    avg_pr_merge_time.columns = ['id', 'avg_pr_merge_time_days']
+    if pr_df.empty:
+        logging.warning("Pull Requests data is empty, skipping PR merge time aggregation.")
+        avg_pr_merge_time = pd.DataFrame(columns=['id', 'avg_pr_merge_time_days'])
+    else:
+        avg_pr_merge_time = pr_df.groupby('repository')['merge_time_days'].mean().reset_index()
+        avg_pr_merge_time.columns = ['id', 'avg_pr_merge_time_days']
 
     # Merge metrics with repository dataframe
     result_df = repo_df.merge(avg_issue_resolution, on='id', how='left')
@@ -113,12 +121,18 @@ def normalize_metrics(repo_df):
 
 def transform_all_data(repo_df, issues_df, pr_df):
     """Apply all transformations to the data."""
-    issues_df = calculate_issue_resolution_time(issues_df)
-    pr_df = calculate_pr_merge_time(pr_df)
+    if not issues_df.empty:
+        issues_df = calculate_issue_resolution_time(issues_df)
+
+    if not pr_df.empty:
+        pr_df = calculate_pr_merge_time(pr_df)
+
     repo_df = aggregate_repository_metrics(repo_df, issues_df, pr_df)
-    contributors_df = calculate_contributor_activity(issues_df, pr_df)
-    repo_df = repo_df.merge(contributors_df, left_on='id', right_on='repository', how='left')
-    repo_df.drop(columns=['repository'], inplace=True, errors='ignore')
+
+    if not issues_df.empty or not pr_df.empty:
+        contributors_df = calculate_contributor_activity(issues_df, pr_df)
+        repo_df = repo_df.merge(contributors_df, left_on='id', right_on='repository', how='left')
+        repo_df.drop(columns=['repository'], inplace=True, errors='ignore')
 
     # Categorize repositories
     repo_df = categorize_repositories(repo_df)
@@ -127,7 +141,6 @@ def transform_all_data(repo_df, issues_df, pr_df):
     repo_df = normalize_metrics(repo_df)
 
     return repo_df, issues_df, pr_df
-
 
 if __name__ == "__main__":
     from cleaner import clean_all_data

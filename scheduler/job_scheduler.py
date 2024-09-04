@@ -5,6 +5,8 @@ from pocketbase.client import ClientResponseError
 from pocketbase import PocketBase
 from scheduler.apscheduler_config import create_scheduler
 from data_collection.data_inserter import insert_data
+from data_processing.cleaner import clean_all_data
+from data_processing.transformer import transform_all_data
 from datetime import datetime
 from dotenv import load_dotenv
 import requests
@@ -42,10 +44,11 @@ def authenticate_pocketbase():
         logging.error(f"Unexpected error during PocketBase authentication: {e}")
         raise
 
-def scheduled_data_collection(owner, repo):
+def scheduled_data_collection_and_processing(owner, repo):
     """
     The job function that will be scheduled to run at regular intervals.
-    This function will collect data from GitHub and insert it into PocketBase.
+    This function will collect data from GitHub, insert it into PocketBase,
+    and then clean and transform the data for further use.
     """
     try:
         logging.info(f"Starting data collection for repository: {owner}/{repo}")
@@ -53,8 +56,15 @@ def scheduled_data_collection(owner, repo):
         logging.info(f"Calling insert_data for {owner}/{repo}")
         insert_data(owner, repo)
         logging.info(f"Data collection completed for repository: {owner}/{repo}")
+
+        # After data insertion, clean and transform the data
+        logging.info(f"Starting data processing for repository: {owner}/{repo}")
+        repo_clean, issues_clean, pr_clean = clean_all_data()
+        repo_transformed, issues_transformed, pr_transformed = transform_all_data(repo_clean, issues_clean, pr_clean)
+        logging.info(f"Data processing completed for repository: {owner}/{repo}")
+
     except Exception as e:
-        logging.error(f"Error during data collection for {owner}/{repo}: {e}")
+        logging.error(f"Error during data collection and processing for {owner}/{repo}: {e}")
         logging.exception("Traceback:")
 
 def start_scheduler():
@@ -120,7 +130,7 @@ def start_scheduler():
         owner = repo['owner']
         repository = repo['repo']
         scheduler.add_job(
-            scheduled_data_collection,
+            scheduled_data_collection_and_processing,
             'interval',  # Schedule to run at intervals
             minutes=10,  # Adjust this interval as needed
             args=[owner, repository],
@@ -139,6 +149,7 @@ def start_scheduler():
     except (KeyboardInterrupt, SystemExit):
         scheduler.shutdown()
         logging.info("Scheduler shut down.")
+
 
 if __name__ == "__main__":
     start_scheduler()
