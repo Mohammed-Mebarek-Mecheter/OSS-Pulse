@@ -55,19 +55,25 @@ def get_pull_requests_data(owner, repo, state="all"):
     url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/pulls"
     params = {"state": state, "per_page": 100}
     pull_requests = []
+    page = 1
+    max_pages = 10  # Limit to 10 pages to avoid excessive recursion
 
-    while url:
+    while url and page <= max_pages:
         response = requests.get(url, headers=HEADERS, params=params, timeout=10)
         response.raise_for_status()
-        pull_requests.extend(response.json())
+        new_prs = response.json()
+        if not new_prs:
+            break
+        pull_requests.extend(new_prs)
         url = response.links.get("next", {}).get("url")
-        if not url:
-            logging.info(f"All pages fetched for {repo}: {len(pull_requests)} pull requests.")
+        page += 1
 
+    logging.info(f"Fetched {len(pull_requests)} pull requests for {repo} (limited to {max_pages} pages).")
     return pull_requests
 
 def process_repository_data(repo_data):
     return {
+        "id": repo_data["id"],
         "name": repo_data["name"],
         "full_name": repo_data["full_name"],
         "description": repo_data.get("description"),
@@ -75,7 +81,8 @@ def process_repository_data(repo_data):
         "forks": repo_data["forks_count"],
         "open_issues": repo_data["open_issues_count"],
         "created_at": repo_data["created_at"],
-        "updated_at": repo_data["updated_at"]
+        "updated_at": repo_data["updated_at"],
+        "repository": repo_data["full_name"]  # Add this line
     }
 
 def process_issues_data(issues_data):
@@ -91,8 +98,13 @@ def process_issues_data(issues_data):
         for issue in issues_data if "pull_request" not in issue
     ]
 
+
 def process_pull_requests_data(prs_data):
-    return [
+    if not prs_data:
+        logging.warning("No pull request data received for processing.")
+        return []
+
+    processed_prs = [
         {
             "number": pr["number"],
             "title": pr["title"],
@@ -100,10 +112,14 @@ def process_pull_requests_data(prs_data):
             "created_at": pr["created_at"],
             "updated_at": pr["updated_at"],
             "closed_at": pr.get("closed_at"),
-            "merged_at": pr.get("merged_at")
+            "merged_at": pr.get("merged_at"),
+            "repository": pr["base"]["repo"]["full_name"]
         }
         for pr in prs_data
     ]
+
+    logging.info(f"Processed {len(processed_prs)} pull requests.")
+    return processed_prs
 
 def check_rate_limit():
     url = f"{GITHUB_API_URL}/rate_limit"

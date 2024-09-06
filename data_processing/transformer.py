@@ -79,10 +79,10 @@ def aggregate_repository_metrics(repo_df, issues_df, pr_df):
 
 def calculate_contributor_activity(issues_df, pr_df):
     """Calculate the number of contributors per repository."""
-    issues_contributors = issues_df.groupby('repository')['user'].nunique().reset_index()
+    issues_contributors = issues_df.groupby('repository')['number'].nunique().reset_index()
     issues_contributors.columns = ['repository', 'issue_contributors']
 
-    pr_contributors = pr_df.groupby('repository')['user'].nunique().reset_index()
+    pr_contributors = pr_df.groupby('repository')['number'].nunique().reset_index()
     pr_contributors.columns = ['repository', 'pr_contributors']
 
     contributors_df = issues_contributors.merge(pr_contributors, on='repository', how='outer')
@@ -143,7 +143,7 @@ def transform_all_data(repo_df, issues_df, pr_df):
     return repo_df, issues_df, pr_df
 
 if __name__ == "__main__":
-    from cleaner import clean_all_data
+    from dashboard.data_processing.cleaner import clean_all_data
 
     authenticate_pocketbase()
 

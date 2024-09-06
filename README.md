@@ -1,157 +1,201 @@
-# OSS-Pulse Project Documentation
+# **OSS-Pulse Project Documentation**
 
-## Overview
+## **Overview**
 
-**OSS-Pulse** is a data pipeline and analytics dashboard designed to monitor and analyze key metrics from GitHub repositories. The project automates the collection of repository details, issues, and pull requests, storing this data in PocketBase for further processing. The processed data is then visualized through an interactive Streamlit dashboard, providing insights into repository activity, growth, and health.
+The OSS-Pulse project is designed to collect, process, and visualize data from GitHub repositories, focusing on repository details, issues, and pull requests. The collected data is stored in a PocketBase database, cleaned, transformed, and presented via a Streamlit dashboard for insightful visualization and analysis.
 
-### Key Components:
-- **data_collection**: Handles the extraction of data from the GitHub API, focusing on repositories, issues, and pull requests.
-- **data_processing**: Comprises two main modules: cleaning (`cleaner.py`) and transforming (`transformer.py`) the raw data into structured, insightful metrics.
-- **dashboard**: A Streamlit-based web dashboard designed for visualizing the processed data, offering interactive analytics and reports.
-- **scheduler**: Automates periodic data collection to keep the dataset up to date.
-- **tests**: Comprehensive unit tests ensuring the reliability and accuracy of all components in the pipeline.
+### **Key Components:**
+- **data_collection**: Module responsible for fetching repository data, issues, and pull requests from GitHub.
+- **data_processing**: Module that cleans and transforms the raw data for further analysis.
+- **dashboard**: Streamlit-based web dashboard for visualizing the collected and processed data.
+- **scheduler**: Automates the regular collection of data at defined intervals.
+- **tests**: Unit tests for validating the different components of the project.
 
 ---
 
-## Changes and Setup Instructions
+## **Project Structure**
 
-### 1. PocketBase Collection Structure
+Here is the updated project structure:
 
-The following collections are defined in PocketBase to store data fetched from GitHub:
+```
+OSS-Pulse/
+├── .env                         # Environment variables (GitHub token, PocketBase config)
+├── .gitignore                   # Files to ignore (e.g., environment files)
+├── app.py                       # Main Streamlit dashboard file
+├── config.py                    # Project-wide configuration settings
+├── dashboard/                   # Streamlit dashboard directory
+│   ├── components/              # Dashboard UI components
+│   │   ├── metrics_display.py    # Component to display metrics
+│   │   ├── sidebar.py            # Sidebar filters and selections
+│   ├── data_loader.py            # Loads data for use in the dashboard
+│   ├── data_processing/          # Data cleaning and transformation
+│   │   ├── cleaner.py            # Cleans the fetched raw data
+│   │   ├── fetch_data.py         # Fetches data from PocketBase
+│   │   ├── pocketbase_config.py  # PocketBase connection/authentication
+│   │   ├── transformer.py        # Transforms cleaned data into metrics
+│   ├── visualizations.py         # Contains visualization logic for charts/graphs
+├── data_collection/              # Fetches data from GitHub and inserts it into PocketBase
+│   ├── data_inserter.py          # Inserts data into PocketBase
+│   ├── github_api.py             # Fetches data from the GitHub API
+├── data_processing/              # Duplicate of cleaning and transformation (for testing)
+│   ├── cleaner.py
+│   ├── transformer.py
+├── deduplicate_pocketbase.py     # Removes duplicates from PocketBase
+├── poetry.lock                   # Poetry dependency lock file
+├── pyproject.toml                # Project metadata and dependencies
+├── README.md                     # Project documentation
+├── requirements.txt              # Python package dependencies
+├── scheduler/                    # Scheduler logic for data fetching automation
+│   ├── apscheduler_config.py     # APScheduler configuration
+│   ├── job_scheduler.py          # Triggers data collection jobs
+```
 
-#### a. **repositories**
-- **id** (text, auto-generated)
-- **name** (text)
-- **full_name** (text, unique)
-- **description** (text, optional)
-- **stars** (number)
-- **forks** (number)
-- **open_issues** (number)
-- **created_at** (date)
-- **updated_at** (date)
+---
 
-#### b. **issues**
-- **id** (text, auto-generated)
-- **number** (number)
-- **title** (text)
-- **state** (select: open, closed)
-- **created_at** (date)
-- **updated_at** (date)
-- **closed_at** (date, optional)
-- **repository** (relation to repositories collection)
+## **PocketBase Setup**
 
-#### c. **pull_requests**
-- **id** (text, auto-generated)
-- **number** (number)
-- **title** (text)
-- **state** (select: open, closed, merged)
-- **created_at** (date)
-- **updated_at** (date)
-- **closed_at** (date, optional)
-- **merged_at** (date, optional)
-- **repository** (relation to repositories collection)
+### **PocketBase Collection Structure**
 
-### 2. Setup Instructions for PocketBase
+In PocketBase, create the following collections to store the GitHub data:
 
-#### Step 1: Create Collections in PocketBase
-1. **Login** to your PocketBase Admin UI.
-2. **Create a new collection** for each of the following:
-   - `repositories`
-   - `issues`
-   - `pull_requests`
-   
-3. **Add Fields** to each collection as specified above.
-   - Set `full_name` in `repositories` as **unique**.
-   - Set up `repository` in `issues` and `pull_requests` as a **relation** to the `repositories` collection.
+- **repositories**:
+  - `id` (auto-generated)
+  - `name` (text)
+  - `full_name` (text, unique)
+  - `description` (text, optional)
+  - `stars` (number)
+  - `forks` (number)
+  - `open_issues` (number)
+  - `created_at` (date)
+  - `updated_at` (date)
 
-#### Step 2: Set Up Environment Variables
-Create a `.env` file at the root of your project with the following contents:
+- **issues**:
+  - `id` (auto-generated)
+  - `number` (number)
+  - `title` (text)
+  - `state` (select: open, closed)
+  - `created_at` (date)
+  - `updated_at` (date)
+  - `closed_at` (date, optional)
+  - `repository` (relation to repositories collection)
+
+- **pull_requests**:
+  - `id` (auto-generated)
+  - `number` (number)
+  - `title` (text)
+  - `state` (select: open, closed, merged)
+  - `created_at` (date)
+  - `updated_at` (date)
+  - `closed_at` (date, optional)
+  - `merged_at` (date, optional)
+  - `repository` (relation to repositories collection)
+
+### **Environment Variables**
+
+Create a `.env` file at the root of the project with the following variables:
 ```bash
-POCKETBASE_URL="http://localhost:8090"  # or your actual PocketBase URL
-POCKETBASE_EMAIL="your-admin-email@example.com"
-POCKETBASE_PASSWORD="your-admin-password"
+POCKETBASE_URL="http://localhost:8090"
+POCKETBASE_EMAIL="your-email@example.com"
+POCKETBASE_PASSWORD="your-password"
 GITHUB_TOKEN="your-github-token"
 ```
-This ensures that your PocketBase credentials and GitHub token are securely managed and easily configurable.
 
-### 3. Code Adjustments
+---
 
-#### **data_inserter.py**:
-- **Field Names**: Updated to match the PocketBase collection structure.
-- **Data Types**: Proper handling of optional fields such as `description`, `closed_at`, and `merged_at`.
-- **Relation Handling**: The `repository` field in `issues` and `pull_requests` is managed correctly as a relation to the `repositories` collection.
+## **Data Collection Process**
 
-#### **github_api.py**:
-- **Data Processing**: Processing functions (`process_repository_data`, `process_issues_data`, `process_pull_requests_data`) ensure data conforms to the PocketBase schema.
-- **State Handling**: Properly maps the `state` of pull requests to include "merged" status.
+### **Fetching Data**
 
-#### **cleaner.py**:
-- **Outlier Handling**: Robust outlier detection and handling to manage diverse repository sizes, ensuring clean and consistent data.
-- **Validation**: Ensures integrity by checking the logical order of dates and correcting or flagging inconsistencies.
+1. **GitHub API**:
+   - The `github_api.py` script fetches data from GitHub repositories, issues, and pull requests using the GitHub API.
+   - Data is fetched and processed by `process_repository_data`, `process_issues_data`, and `process_pull_requests_data`.
 
-#### **transformer.py**:
-- **Metric Calculation**: Computes key metrics such as issue resolution time and PR merge time, including normalization across repositories.
-- **Categorization**: Categorizes repositories into size classes (e.g., micro, small, medium, large) based on star counts, improving analytical comparisons.
-- **Normalization**: Enhances comparability by normalizing metrics like stars per fork and contributors per star.
+2. **Data Insertion**:
+   - The `data_inserter.py` script inserts the fetched data into PocketBase.
+   - Fields like `full_name` in the repositories collection are used to check for duplicates, and data is either inserted or updated accordingly.
 
-#### **test_data_processing.py**:
-- **Comprehensive Testing**: Extensive test coverage for all transformation functions, including edge cases and large datasets.
-- **Mocking**: Effectively mocks PocketBase interactions to isolate tests and validate processing logic.
+### **Scheduler**
 
-### 4. Running the Project
+- The scheduler in the `scheduler/` directory automates regular data fetching from GitHub.
+- **APSscheduler** is configured in `apscheduler_config.py`, and jobs are triggered using `job_scheduler.py`.
 
-#### Step 1: Install Dependencies
-Ensure all required Python packages are installed:
+### **Deduplication**
+- The `deduplicate_pocketbase.py` script ensures there are no duplicate entries in the PocketBase collections.
+
+---
+
+## **Data Processing for Dashboard**
+
+### **Cleaning Data**:
+- **`cleaner.py`**:
+  - Cleans data retrieved from PocketBase, removing unnecessary columns and transforming date and numeric fields.
+  - Issues and PR data is cleaned separately to ensure data integrity.
+
+### **Transforming Data**:
+- **`transformer.py`**:
+  - Transforms cleaned data into actionable metrics, like `issue resolution time`, `pull request merge time`, and categorizes repositories based on stars (e.g., micro, small, large).
+  - Flags repositories that haven't been updated in the last six months.
+
+### **Fetching and Saving Data**:
+- **`fetch_data.py`**:
+  - Fetches the cleaned and transformed data from PocketBase and saves it as CSV files (`repo_data.csv`, `issues_data.csv`, `pr_data.csv`).
+  - This data is then loaded for the dashboard.
+
+---
+
+## **Streamlit Dashboard**
+
+### **Overview**
+- The dashboard (`app.py`) displays the collected and processed data visually, offering metrics and insights into GitHub repositories.
+
+### **Components**:
+- **Metrics Display**: Key statistics like total repositories, average stars, and total contributors.
+- **Visualizations**: Interactive visualizations (e.g., line charts, box plots) for repository growth, issue resolution time, and pull request merge times.
+- **Filters**: Sidebar with filters for repository size, date range, etc., allowing users to explore data interactively.
+
+### **Visualizations**:
+- **Repository Growth**: A line chart showing growth in stars, forks, and issues over time.
+- **Issue Resolution Time**: A box plot displaying the resolution time of issues, categorized by repository size.
+- **Pull Request Merge Time**: A box plot showing the merge time of pull requests.
+
+---
+
+## **Running the Project**
+
+### **Step 1: Install Dependencies**
+Install the necessary Python packages:
 ```bash
 pip install -r requirements.txt
 ```
 
-#### Step 2: Run Tests
-Run the test suite to verify the setup:
+### **Step 2: Start PocketBase**
+Run PocketBase on your local machine:
 ```bash
-pytest tests/test_data_collection.py
-pytest tests/test_data_processing.py
+./pocketbase serve
 ```
 
-#### Step 3: Data Collection and Insertion
-To collect and insert data from a specific GitHub repository:
+### **Step 3: Insert Data**
+To insert data into PocketBase:
 ```bash
 python data_collection/data_inserter.py
 ```
-This process authenticates with PocketBase, fetches data from GitHub, and inserts the repository, issues, and pull requests data into PocketBase.
 
-### 5. Developing the Streamlit Dashboard
+### **Step 4: Fetch and Transform Data**
+To clean and transform the fetched data:
+```bash
+python dashboard/data_processing/fetch_data.py
+```
 
-#### Step 1: Set Up the Streamlit App
-- Create the initial layout and UI components in `dashboard/app.py`.
-- Integrate with the cleaned and transformed data from PocketBase.
-- Ensure dynamic filtering and interactive visualizations are responsive and intuitive.
-
-#### Step 2: Visualize Key Metrics
-- Implement visualizations for metrics such as stars over time, issue resolution times, and PR merge times.
-- Add interactivity for users to explore data by repository size, date ranges, and contributor activity.
-
-#### Step 3: Testing and Optimization
-- Test the dashboard with various data sizes and filters.
-- Optimize performance, focusing on data loading, filtering, and rendering times.
-
-### 6. Deployment Preparation
-
-#### Step 1: Finalize Environment Configuration
-- Ensure all environment variables are correctly set for deployment, especially for Streamlit and PocketBase connections.
-
-#### Step 2: Deploy the Streamlit App
-- Deploy the app to a cloud platform (e.g., Streamlit Cloud, Heroku, AWS).
-- Monitor the app post-deployment to ensure stability and performance.
-
-### 7. Troubleshooting
-
-- **Authentication Issues**: Verify PocketBase credentials and GitHub token in the `.env` file.
-- **Data Insertion Errors**: Check for schema mismatches or incorrect field types in PocketBase collections.
-- **Performance Issues**: Profile the app to identify and resolve bottlenecks in data processing or visualization rendering.
+### **Step 5: Run the Streamlit Dashboard**
+Start the Streamlit dashboard to visualize the data:
+```bash
+streamlit run app.py
+```
 
 ---
 
-### Conclusion
+## **Conclusion**
 
-OSS-Pulse is now a robust platform for collecting, processing, and visualizing GitHub repository metrics. With the structured data pipeline integrated into PocketBase and the interactive dashboard built on Streamlit, users can gain deep insights into the health and activity of open-source projects. Regular updates and continued development will further enhance the platform’s capabilities, making it a valuable tool for developers and project managers alike.
+The OSS-Pulse project provides a robust solution for collecting, processing, and visualizing GitHub data, integrated with PocketBase as the backend. The data is regularly updated via an automated scheduler, cleaned and transformed for actionable insights, and displayed in a dynamic and interactive dashboard.
+
+For future improvements, additional metrics, visualizations, and comparative analysis features can be added to further enhance the dashboard. Ensure that PocketBase collections match the specified structure for seamless operation.
