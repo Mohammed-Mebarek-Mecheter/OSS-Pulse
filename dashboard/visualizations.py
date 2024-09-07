@@ -12,6 +12,14 @@ def plot_repository_growth(repo_data):
 
     fig = px.line(monthly_data, x='created_at', y='cumulative_count',
                   title='Cumulative Repository Growth')
+
+    fig.update_layout(
+        template='plotly_dark',
+        paper_bgcolor='#0d1117',
+        plot_bgcolor='#0d1117',
+        font=dict(color='#c9d1d9')
+    )
+
     return fig
 
 @st.cache_data
@@ -19,7 +27,15 @@ def plot_issue_resolution_time(issues_data):
     resolved_issues = issues_data[issues_data['resolution_time_days'] >= 0]
     fig = px.box(resolved_issues, x='repository', y='resolution_time_days',
                  title='Issue Resolution Time by Repository')
-    fig.update_layout(xaxis={'categoryorder': 'total descending'})
+
+    fig.update_layout(
+        xaxis={'categoryorder': 'total descending'},
+        template='plotly_dark',
+        paper_bgcolor='#0d1117',
+        plot_bgcolor='#0d1117',
+        font=dict(color='#c9d1d9')
+    )
+
     return fig
 
 @st.cache_data
@@ -27,7 +43,15 @@ def plot_pull_request_merge_time(pr_data):
     merged_prs = pr_data[pr_data['merge_time_days'] >= 0]
     fig = px.box(merged_prs, x='repository', y='merge_time_days',
                  title='Pull Request Merge Time by Repository')
-    fig.update_layout(xaxis={'categoryorder': 'total descending'})
+
+    fig.update_layout(
+        xaxis={'categoryorder': 'total descending'},
+        template='plotly_dark',
+        paper_bgcolor='#0d1117',
+        plot_bgcolor='#0d1117',
+        font=dict(color='#c9d1d9')
+    )
+
     return fig
 
 @st.cache_data
@@ -35,7 +59,15 @@ def plot_contributor_activity(repo_data):
     top_repos = repo_data.nlargest(20, 'total_contributors')
     fig = px.bar(top_repos, x='name', y='total_contributors',
                  title='Top 20 Repositories by Total Contributors')
-    fig.update_layout(xaxis={'categoryorder': 'total descending'})
+
+    fig.update_layout(
+        xaxis={'categoryorder': 'total descending'},
+        template='plotly_dark',
+        paper_bgcolor='#0d1117',
+        plot_bgcolor='#0d1117',
+        font=dict(color='#c9d1d9')
+    )
+
     return fig
 
 @st.cache_data
@@ -43,6 +75,14 @@ def plot_repository_size_distribution(repo_data):
     size_distribution = repo_data['size_category'].value_counts().sort_index()
     fig = px.pie(values=size_distribution.values, names=size_distribution.index,
                  title="Repository Size Distribution")
+
+    fig.update_layout(
+        template='plotly_dark',
+        paper_bgcolor='#0d1117',
+        plot_bgcolor='#0d1117',
+        font=dict(color='#c9d1d9')
+    )
+
     return fig
 
 @st.cache_data
@@ -50,7 +90,15 @@ def plot_correlation_heatmap(repo_data):
     metrics = ['stars', 'forks', 'open_issues', 'total_contributors']
     corr_matrix = repo_data[metrics].corr()
     fig = px.imshow(corr_matrix, text_auto=True, aspect="auto")
-    fig.update_layout(title="Correlation Heatmap of Repository Metrics")
+
+    fig.update_layout(
+        title="Correlation Heatmap of Repository Metrics",
+        template='plotly_dark',
+        paper_bgcolor='#0d1117',
+        plot_bgcolor='#0d1117',
+        font=dict(color='#c9d1d9')
+    )
+
     return fig
 
 @st.cache_data
@@ -66,7 +114,13 @@ def plot_issue_pr_funnel(issues_data, pr_data):
         textinfo="value+percent initial"
     ))
 
-    fig.update_layout(title_text="Issue to PR Funnel")
+    fig.update_layout(
+        title_text="Issue to PR Funnel",
+        template='plotly_dark',
+        paper_bgcolor='#0d1117',
+        plot_bgcolor='#0d1117',
+        font=dict(color='#c9d1d9')
+    )
 
     return fig
 
@@ -94,7 +148,11 @@ def plot_trend_analysis(repo_data):
         yaxis=dict(title='New Repositories', side='left'),
         yaxis2=dict(title='New Stars', side='right', overlaying='y', showgrid=False),
         yaxis3=dict(title='New Forks', side='right', overlaying='y', showgrid=False, anchor='free', position=1),
-        legend=dict(x=1.1, y=1)
+        legend=dict(x=1.1, y=1),
+        template='plotly_dark',
+        paper_bgcolor='#0d1117',
+        plot_bgcolor='#0d1117',
+        font=dict(color='#c9d1d9')
     )
 
     return fig
@@ -108,6 +166,14 @@ def plot_repository_treemap(repo_data):
                      color='stars', hover_data=['forks', 'open_issues'],
                      color_continuous_scale='blues',
                      title='Repository Treemap by Stars and Size Category')
+
+    fig.update_layout(
+        template='plotly_dark',
+        paper_bgcolor='#0d1117',
+        plot_bgcolor='#0d1117',
+        font=dict(color='#c9d1d9')
+    )
+
     return fig
 
 @st.cache_data
@@ -127,6 +193,14 @@ def plot_issues_vs_prs(repo_data, issues_data, pr_data):
                      size='total_contributors', hover_data=['name', 'id'],
                      labels={'issue_count': 'Number of Issues', 'pr_count': 'Number of PRs'},
                      title='Issues vs Pull Requests by Repository')
+
+    fig.update_layout(
+        template='plotly_dark',
+        paper_bgcolor='#0d1117',
+        plot_bgcolor='#0d1117',
+        font=dict(color='#c9d1d9')
+    )
+
     return fig
 
 @st.cache_data
@@ -140,7 +214,15 @@ def display_top_repositories(repo_data, top_n=10):
                  hover_data=['forks', 'open_issues'])
 
     # Customize the layout
-    fig.update_layout(xaxis_tickangle=-45, xaxis_title="", yaxis_title="Stars")
+    fig.update_layout(
+        xaxis_tickangle=-45,
+        xaxis_title="",
+        yaxis_title="Stars",
+        template='plotly_dark',
+        paper_bgcolor='#0d1117',
+        plot_bgcolor='#0d1117',
+        font=dict(color='#c9d1d9')
+    )
 
     # Display the chart
     st.plotly_chart(fig, use_container_width=True)

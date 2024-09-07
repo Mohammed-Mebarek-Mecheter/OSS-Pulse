@@ -3,7 +3,7 @@
 /* General body styling */
 body {
     font-family: 'Roboto', sans-serif;
-    background-color: #f8f9fa;
+    background-color: #0d1117;
 }
 
 /* Main container */
@@ -11,7 +11,7 @@ body {
     padding: 2rem 1.5rem;
     max-width: 1200px;
     margin: auto;
-    background-color: #ffffff;
+    background-color: #161b22;
     border-radius: 10px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     animation: fadeIn 0.5s ease-in-out;
@@ -25,7 +25,7 @@ body {
 
 /* Headers styling */
 h1 {
-    color: #1E88E5;
+    color: #58a6ff;
     font-size: 2.5rem;
     font-weight: bold;
     text-align: center;
@@ -33,13 +33,13 @@ h1 {
 }
 
 h2, h3, h4, h5, h6 {
-    color: #2E3B4E;
+    color: #c9d1d9;
     margin-bottom: 15px;
 }
 
 /* Metrics Styling */
 .stMetric .metric-value {
-    background-color: #2E3B4E;
+    background-color: #21262d;
     border-radius: 12px;
     padding: 15px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -59,8 +59,8 @@ h2, h3, h4, h5, h6 {
 
 /* Charts styling */
 .plotly-graph-div {
-    background-color: #ffffff;
-    border: 1px solid #e0e0e0;
+    background-color: #161b22;
+    border: 1px solid #30363d;
     border-radius: 10px;
     padding: 15px;
     margin-bottom: 20px;
@@ -79,7 +79,7 @@ h2, h3, h4, h5, h6 {
 
 /* Sidebar Styling */
 .sidebar .sidebar-content {
-    background-color: #1E88E5;
+    background-color: #21262d;
     padding: 20px;
     border-radius: 10px;
     color: white;
@@ -92,18 +92,18 @@ h2, h3, h4, h5, h6 {
 }
 
 .sidebar .sidebar-content a {
-    color: #ffffff;
+    color: #58a6ff;
     text-decoration: none;
     transition: color 0.3s ease;
 }
 
 .sidebar .sidebar-content a:hover {
-    color: #f0f2f6;
+    color: #79c0ff;
 }
 
 /* Buttons */
 .stButton>button {
-    background-color: #1E88E5;
+    background-color: #238636;
     color: white;
     border: none;
     padding: 12px 25px;
@@ -118,7 +118,7 @@ h2, h3, h4, h5, h6 {
 }
 
 .stButton>button:hover {
-    background-color: #005cbf;
+    background-color: #2ea043;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -128,22 +128,22 @@ h2, h3, h4, h5, h6 {
 }
 
 .stTabs [aria-selected="true"] {
-    background-color: #1E88E5;
-    color: #2E3B4E;
+    background-color: #238636;
+    color: #c9d1d9;
     border-radius: 8px;
     padding: 10px 20px;
 }
 
 .stTabs [aria-selected="false"] {
-    background-color: #eef1f7;
-    color: #2E3B4E;
+    background-color: #21262d;
+    color: #c9d1d9;
     border-radius: 8px;
     padding: 10px 20px;
 }
 
 /* Data download link */
 a.download-link {
-    background-color: #1E88E5;
+    background-color: #238636;
     color: white;
     padding: 10px 20px;
     border-radius: 8px;
@@ -153,22 +153,22 @@ a.download-link {
 }
 
 a.download-link:hover {
-    background-color: #005cbf;
+    background-color: #2ea043;
 }
 
 /* Footer */
 footer {
     font-size: 0.9em;
-    color: #666;
+    color: #8b949e;
     text-align: center;
     padding: 15px 0;
     margin-top: 40px;
-    border-top: 1px solid #e0e0e0;
-    background-color: #f8f9fa;
+    border-top: 1px solid #30363d;
+    background-color: #0d1117;
 }
 
 footer a {
-    color: #1E88E5;
+    color: #58a6ff;
     text-decoration: none;
 }
 

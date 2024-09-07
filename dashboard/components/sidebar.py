@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 from streamlit_lottie import st_lottie
 import json
 
-@st.cache_data
 def display_sidebar(repo_data, issues_data, pr_data):
     st.sidebar.header("Filter Options")
 
@@ -86,7 +85,6 @@ def display_sidebar(repo_data, issues_data, pr_data):
 
     return filters
 
-@st.cache_data
 def apply_filters(repo_data, issues_data, pr_data, filters):
     # Apply search filter on repository name or full name
     if 'search_term' in filters and filters['search_term']:

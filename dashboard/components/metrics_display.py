@@ -3,7 +3,6 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-@st.cache_data
 def display_key_metrics(repo_data: pd.DataFrame, issues_data: pd.DataFrame, pr_data: pd.DataFrame):
     """
     Displays key metrics for repositories, issues, and pull requests.

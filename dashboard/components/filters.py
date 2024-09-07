@@ -2,7 +2,6 @@
 import streamlit as st
 import pandas as pd
 
-@st.cache_data
 def apply_advanced_filters(repo_data, issues_data, pr_data):
     st.sidebar.subheader("Advanced Filters")
 
