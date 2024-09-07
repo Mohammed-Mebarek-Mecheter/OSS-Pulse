@@ -1,0 +1,177 @@
+/* Custom CSS for OSS-Pulse Dashboard */
+
+/* General body styling */
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #f8f9fa;
+}
+
+/* Main container */
+.main .block-container {
+    padding: 2rem 1.5rem;
+    max-width: 1200px;
+    margin: auto;
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+/* Animation */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Headers styling */
+h1 {
+    color: #1E88E5;
+    font-size: 2.5rem;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+h2, h3, h4, h5, h6 {
+    color: #2E3B4E;
+    margin-bottom: 15px;
+}
+
+/* Metrics Styling */
+.stMetric .metric-value {
+    background-color: #2E3B4E;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    font-size: 1.5rem;
+    font-weight: 600;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.stMetric .metric-value:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Charts styling */
+.plotly-graph-div {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
+    transition: transform 0.3s ease;
+    animation: slideUp 0.6s ease;
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.plotly-graph-div:hover {
+    transform: scale(1.02);
+}
+
+/* Sidebar Styling */
+.sidebar .sidebar-content {
+    background-color: #1E88E5;
+    padding: 20px;
+    border-radius: 10px;
+    color: white;
+    text-align: center;
+}
+
+.sidebar .sidebar-content h3 {
+    color: #ffffff;
+    font-weight: bold;
+}
+
+.sidebar .sidebar-content a {
+    color: #ffffff;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.sidebar .sidebar-content a:hover {
+    color: #f0f2f6;
+}
+
+/* Buttons */
+.stButton>button {
+    background-color: #1E88E5;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    font-size: 1rem;
+    font-weight: bold;
+    border-radius: 8px;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.stButton>button:hover {
+    background-color: #005cbf;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Tab styling */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 10px;
+}
+
+.stTabs [aria-selected="true"] {
+    background-color: #1E88E5;
+    color: #2E3B4E;
+    border-radius: 8px;
+    padding: 10px 20px;
+}
+
+.stTabs [aria-selected="false"] {
+    background-color: #eef1f7;
+    color: #2E3B4E;
+    border-radius: 8px;
+    padding: 10px 20px;
+}
+
+/* Data download link */
+a.download-link {
+    background-color: #1E88E5;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+}
+
+a.download-link:hover {
+    background-color: #005cbf;
+}
+
+/* Footer */
+footer {
+    font-size: 0.9em;
+    color: #666;
+    text-align: center;
+    padding: 15px 0;
+    margin-top: 40px;
+    border-top: 1px solid #e0e0e0;
+    background-color: #f8f9fa;
+}
+
+footer a {
+    color: #1E88E5;
+    text-decoration: none;
+}
+
+footer a:hover {
+    text-decoration: underline;
+}
