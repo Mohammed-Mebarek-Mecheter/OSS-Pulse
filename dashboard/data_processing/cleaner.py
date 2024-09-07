@@ -20,7 +20,7 @@ def clean_repository_data(repo_df):
         return repo_df
 
     # Remove unnecessary columns
-    columns_to_drop = ['Unnamed: 0', 'repository_y']
+    columns_to_drop = ['Unnamed: 0', 'repository_x', 'expand', 'collection_id', 'collection_name']
     repo_df = repo_df.drop(columns=columns_to_drop, errors='ignore')
 
     # Fill NaN in description and other text fields before type conversion

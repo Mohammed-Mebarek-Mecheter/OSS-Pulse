@@ -93,17 +93,10 @@ def calculate_contributor_activity(issues_df, pr_df):
 
 
 def categorize_repositories(repo_df):
-    """Categorize repositories based on size and activity."""
-    conditions = [
-        (repo_df['stars'] < 100),
-        (repo_df['stars'] >= 100) & (repo_df['stars'] < 1000),
-        (repo_df['stars'] >= 1000) & (repo_df['stars'] < 10000),
-        (repo_df['stars'] >= 10000)
-    ]
-    categories = ['micro', 'small', 'medium', 'large']
-
-    repo_df['size_category'] = pd.cut(repo_df['stars'], bins=[0, 100, 1000, 10000, float('inf')], labels=categories, right=False)
-
+    """Categorize repositories based on the number of stars."""
+    bins = [0, 1000, 10000, 100000, 250000, float('inf')]
+    labels = ['micro', 'small', 'medium', 'large', 'mega']
+    repo_df['size_category'] = pd.cut(repo_df['stars'], bins=bins, labels=labels, right=False)
     return repo_df
 
 

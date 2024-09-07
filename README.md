@@ -4,6 +4,9 @@
 
 The OSS-Pulse project is designed to collect, process, and visualize data from GitHub repositories, focusing on repository details, issues, and pull requests. The collected data is stored in a PocketBase database, cleaned, transformed, and presented via a Streamlit dashboard for insightful visualization and analysis.
 
+You can check out the live dashboard here: [OSS-Pulse Dashboard](https://oss-pulse.streamlit.app)
+
+
 ### **Key Components:**
 - **data_collection**: Module responsible for fetching repository data, issues, and pull requests from GitHub.
 - **data_processing**: Module that cleans and transforms the raw data for further analysis.
@@ -27,8 +30,10 @@ OSS-Pulse/
 │   ├── components/              # Dashboard UI components
 │   │   ├── metrics_display.py    # Component to display metrics
 │   │   ├── sidebar.py            # Sidebar filters and selections
+│   │   ├── filters.py            # Advance filters and selections
 │   ├── data_loader.py            # Loads data for use in the dashboard
 │   ├── data_processing/          # Data cleaning and transformation
+│   │   ├── data/                 # Data files
 │   │   ├── cleaner.py            # Cleans the fetched raw data
 │   │   ├── fetch_data.py         # Fetches data from PocketBase
 │   │   ├── pocketbase_config.py  # PocketBase connection/authentication
@@ -148,15 +153,61 @@ GITHUB_TOKEN="your-github-token"
 ### **Overview**
 - The dashboard (`app.py`) displays the collected and processed data visually, offering metrics and insights into GitHub repositories.
 
-### **Components**:
-- **Metrics Display**: Key statistics like total repositories, average stars, and total contributors.
-- **Visualizations**: Interactive visualizations (e.g., line charts, box plots) for repository growth, issue resolution time, and pull request merge times.
-- **Filters**: Sidebar with filters for repository size, date range, etc., allowing users to explore data interactively.
+### **Dashboard Directory Overview**
 
-### **Visualizations**:
-- **Repository Growth**: A line chart showing growth in stars, forks, and issues over time.
-- **Issue Resolution Time**: A box plot displaying the resolution time of issues, categorized by repository size.
-- **Pull Request Merge Time**: A box plot showing the merge time of pull requests.
+The `dashboard` directory is the core of the OSS-Pulse project. It includes the components necessary to display, filter, and visualize GitHub repository data, as well as the logic for data processing and loading. Here's a breakdown of the key files and their responsibilities:
+
+#### **Components Directory (`dashboard/components/`)**
+
+- **`filters.py`**: Contains logic for advanced filtering options, allowing users to filter repositories by stars, forks, open issues, and contributors. It also supports time-period filtering, issue resolution time, and pull request merge time.
+  
+- **`metrics_display.py`**: Displays key metrics such as total repositories, stars, forks, open issues, and contributors. It also shows advanced metrics such as average issue resolution time, stars per fork, and contributors per repository.
+
+- **`sidebar.py`**: Handles the sidebar user interface for filtering the dataset. It includes options for filtering by repository name, size categories, stars, forks, open issues, date range, and more. The sidebar provides a dynamic way for users to interact with the dataset and customize their view.
+
+#### **Data Loader (`dashboard/data_loader.py`)**
+
+- **`data_loader.py`**: This module is responsible for loading the datasets into the Streamlit dashboard. It handles caching the data for performance optimization, ensuring that data is not reloaded on every interaction, thus improving the overall performance of the app.
+
+#### **Data Processing Directory (`dashboard/data_processing/`)**
+
+- **`cleaner.py`**: Contains functions to clean and preprocess raw GitHub repository data. It handles missing values, data type conversion, and other transformations to prepare the dataset for analysis and visualization.
+  
+- **`transformer.py`**: Transforms the raw data by calculating additional metrics like `stars_per_fork`, `resolution_time_days`, and `merge_time_days`. These calculated fields enrich the dataset and provide deeper insights into repository performance.
+
+- **`fetch_data.py`**: Includes logic for fetching and updating the GitHub repository data from external sources or databases. It ensures that the data is always up-to-date.
+
+- **`pocketbase_config.py`**: Contains configuration details for connecting to a PocketBase instance for data storage. PocketBase can be used to store, query, and manage the repository data over time.
+
+#### **Visualizations (`dashboard/visualizations.py`)**
+
+- **`visualizations.py`**: This file is responsible for generating the visualizations displayed in the dashboard. It includes various plotting functions such as:
+  - `plot_repository_growth`: Visualizes the growth of repositories based on stars, forks, and issues over time.
+  - `plot_issue_resolution_time`: Plots issue resolution times, allowing users to compare across different repositories.
+  - `plot_pull_request_merge_time`: Plots the time taken to merge pull requests, providing insights into the efficiency of repository maintenance.
+  - there are other visuals
+
+#### **Other Files**
+
+- **`__init__.py`**: Initialization files that allow Python to recognize these directories as modules.
+
+---
+
+### **Data Files**
+
+The data used in this project includes information about GitHub repositories, issues, and pull requests. It has been processed into CSV and Parquet formats for easy analysis and storage. The key datasets include:
+
+- **`repo_data.csv` / `repo_data.parquet`**: Contains information about repositories, including stars, forks, open issues, and contributors.
+- **`issues_data.csv` / `issues_data.parquet`**: Contains details about issues raised in repositories, including resolution time.
+- **`pr_data.csv` / `pr_data.parquet`**: Contains metadata about pull requests, including merge time and status.
+
+### **Data Source**
+
+The data used in this project has been published on **Kaggle**:
+
+[Kaggle Dataset: Open Source GitHub Repos (Stars, Issues, and PRs)](https://www.kaggle.com/datasets/mohammedmecheter/open-source-github-repos-stars-issues-and-prs)
+
+This dataset provides insights into open-source GitHub repositories, including metrics like stars, forks, issues, pull requests, and more. It is ideal for analyzing trends, performance, and activity across different repositories.
 
 ---
 

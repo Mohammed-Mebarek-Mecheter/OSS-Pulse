@@ -98,7 +98,7 @@ def fetch_and_prepare_data():
                 pr_transformed.to_csv('data/pr_data.csv', index=False)
                 logging.info("Saved pull requests data to CSV as a fallback")
 
-        logging.info("Data processing complete. Files saved in dashboard/data/")
+        logging.info("Data processing complete. Files saved in data/")
 
     except Exception as e:
         logging.error(f"Error fetching and preparing data: {e}")

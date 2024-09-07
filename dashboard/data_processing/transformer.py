@@ -40,7 +40,7 @@ def flag_stale_repositories(repo_df):
     repo_df['updated_at'] = pd.to_datetime(repo_df['updated_at'], errors='coerce', utc=True)
 
     # Fill any missing or invalid 'updated_at' with the current timestamp
-    repo_df['updated_at'].fillna(pd.Timestamp.utcnow(), inplace=True)
+    repo_df['updated_at'] = repo_df['updated_at'].fillna(pd.Timestamp.utcnow())
 
     # Calculate the stale flag using pd.Timedelta
     repo_df['stale'] = (pd.Timestamp.utcnow() - repo_df['updated_at']) > pd.Timedelta(days=180)
@@ -57,11 +57,11 @@ def normalize_metrics(repo_df):
 def calculate_contributor_activity(issues_df, pr_df):
     """Calculate the number of contributors per repository from issues and PRs."""
     # Count unique contributors in issues
-    issues_contributors = issues_df.groupby('repository')['number'].nunique().reset_index()
+    issues_contributors = issues_df.groupby('repository')['title'].nunique().reset_index()
     issues_contributors.columns = ['repository', 'issue_contributors']
 
     # Count unique contributors in PRs
-    pr_contributors = pr_df.groupby('repository')['number'].nunique().reset_index()
+    pr_contributors = pr_df.groupby('repository')['title'].nunique().reset_index()
     pr_contributors.columns = ['repository', 'pr_contributors']
 
     # Merge both datasets and calculate total contributors
@@ -72,15 +72,25 @@ def calculate_contributor_activity(issues_df, pr_df):
 
 def transform_all_data(repo_df, issues_df, pr_df):
     """Apply all transformations to the data."""
+    # Create a mapping of repository IDs to names
+    repo_id_to_name = dict(zip(repo_df['id'], repo_df['name']))
+
     if not issues_df.empty:
         issues_df = calculate_issue_resolution_time(issues_df)
+        # Map repository IDs to names in issues_df
+        issues_df['repository'] = issues_df['repository'].map(repo_id_to_name)
 
     if not pr_df.empty:
         pr_df = calculate_pr_merge_time(pr_df)
+        # Map repository IDs to names in pr_df
+        pr_df['repository'] = pr_df['repository'].map(repo_id_to_name)
 
     # Merge calculated contributor metrics into the repository data
     contributors_df = calculate_contributor_activity(issues_df, pr_df)
-    repo_df = pd.merge(repo_df, contributors_df, left_on='id', right_on='repository', how='left').fillna(0)
+    repo_df = pd.merge(repo_df, contributors_df, left_on='name', right_on='repository', how='left').fillna(0)
+
+    # Infer objects to avoid future warnings
+    repo_df = repo_df.infer_objects(copy=False)
 
     # Categorize repositories and normalize metrics
     repo_df = categorize_repositories(repo_df)

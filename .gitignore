@@ -8,15 +8,11 @@ config.py
 .venv/
 poetry.lock
 
-# Streamlit
-.streamlit/
-
 # PocketBase
 pb_data/
 
 # Environment variables
 .env
-requirements.txt
 
 # IDEs and editors
 .vscode/
@@ -40,12 +36,12 @@ Thumbs.db
 *.tmp
 
 # Project-specific
-data/
+*.csv
 output/
 
 # Jupyter Notebooks
 .ipynb_checkpoints
-
+notebooks/
 # pytest
 .pytest_cache/
 
@@ -55,3 +51,6 @@ htmlcov/
 .coverage.*
 coverage.xml
 *.cover
+
+# other
+folder.py

@@ -1,57 +1,89 @@
+# filters.py
 import streamlit as st
 import pandas as pd
 
+@st.cache_data
 def apply_advanced_filters(repo_data, issues_data, pr_data):
-    """
-    Provides advanced filters for stars, forks, issues, and contributors.
-
-    Parameters:
-    - repo_data: DataFrame with repository data.
-    - issues_data: DataFrame with issues data.
-    - pr_data: DataFrame with pull requests data.
-
-    Returns:
-    - repo_data: Filtered repository DataFrame.
-    - issues_data: Filtered issues DataFrame.
-    - pr_data: Filtered pull requests DataFrame.
-    """
     st.sidebar.subheader("Advanced Filters")
 
     # Filter by stars
-    min_stars, max_stars = st.sidebar.slider(
-        "Filter by Stars",
-        int(repo_data['stars'].min()),
-        int(repo_data['stars'].max()),
-        (int(repo_data['stars'].min()), int(repo_data['stars'].max()))
-    )
-    repo_data = repo_data[(repo_data['stars'] >= min_stars) & (repo_data['stars'] <= max_stars)]
+    min_stars = int(repo_data['stars'].min())
+    max_stars = int(repo_data['stars'].max())
+
+    # Check if min_stars equals max_stars to prevent slider error
+    if min_stars == max_stars:
+        st.sidebar.write(f"All repositories have {min_stars} stars")
+        star_range = (min_stars, max_stars)
+    else:
+        star_range = st.sidebar.slider(
+            "Filter by Stars",
+            min_value=min_stars,
+            max_value=max_stars,
+            value=(min_stars, max_stars)
+        )
+
+    repo_data = repo_data[(repo_data['stars'] >= star_range[0]) & (repo_data['stars'] <= star_range[1])]
 
     # Filter by forks
-    min_forks, max_forks = st.sidebar.slider(
-        "Filter by Forks",
-        int(repo_data['forks'].min()),
-        int(repo_data['forks'].max()),
-        (int(repo_data['forks'].min()), int(repo_data['forks'].max()))
-    )
-    repo_data = repo_data[(repo_data['forks'] >= min_forks) & (repo_data['forks'] <= max_forks)]
+    min_forks = int(repo_data['forks'].min())
+    max_forks = int(repo_data['forks'].max())
+
+    # Check if min_forks equals max_forks
+    if min_forks == max_forks:
+        st.sidebar.write(f"All repositories have {min_forks} forks")
+        fork_range = (min_forks, max_forks)
+    else:
+        fork_range = st.sidebar.slider(
+            "Filter by Forks",
+            min_value=min_forks,
+            max_value=max_forks,
+            value=(min_forks, max_forks)
+        )
+
+    repo_data = repo_data[(repo_data['forks'] >= fork_range[0]) & (repo_data['forks'] <= fork_range[1])]
 
     # Filter by open issues
-    min_issues, max_issues = st.sidebar.slider(
-        "Filter by Open Issues",
-        int(repo_data['open_issues'].min()),
-        int(repo_data['open_issues'].max()),
-        (int(repo_data['open_issues'].min()), int(repo_data['open_issues'].max()))
-    )
-    repo_data = repo_data[(repo_data['open_issues'] >= min_issues) & (repo_data['open_issues'] <= max_issues)]
+    min_issues = int(repo_data['open_issues'].min())
+    max_issues = int(repo_data['open_issues'].max())
+
+    # Check if min_issues equals max_issues
+    if min_issues == max_issues:
+        st.sidebar.write(f"All repositories have {min_issues} open issues")
+        issue_range = (min_issues, max_issues)
+    else:
+        issue_range = st.sidebar.slider(
+            "Filter by Open Issues",
+            min_value=min_issues,
+            max_value=max_issues,
+            value=(min_issues, max_issues)
+        )
+
+    repo_data = repo_data[(repo_data['open_issues'] >= issue_range[0]) & (repo_data['open_issues'] <= issue_range[1])]
 
     # Filter by contributors
-    min_contributors, max_contributors = st.sidebar.slider(
-        "Filter by Contributors",
-        int(repo_data['total_contributors'].min()),
-        int(repo_data['total_contributors'].max()),
-        (int(repo_data['total_contributors'].min()), int(repo_data['total_contributors'].max()))
-    )
-    repo_data = repo_data[(repo_data['total_contributors'] >= min_contributors) & (repo_data['total_contributors'] <= max_contributors)]
+    if 'total_contributors' in repo_data.columns:
+        min_contributors = int(repo_data['total_contributors'].min())
+        max_contributors = int(repo_data['total_contributors'].max())
+
+        # Check if min_contributors equals max_contributors
+        if min_contributors == max_contributors:
+            st.sidebar.write(f"All repositories have {min_contributors} contributors")
+            contributor_range = (min_contributors, max_contributors)
+        else:
+            contributor_range = st.sidebar.slider(
+                "Filter by Contributors",
+                min_value=min_contributors,
+                max_value=max_contributors,
+                value=(min_contributors, max_contributors)
+            )
+
+        repo_data = repo_data[(repo_data['total_contributors'] >= contributor_range[0]) & (
+                    repo_data['total_contributors'] <= contributor_range[1])]
+
+    # Filter issues and PRs based on the filtered repositories
+    filtered_repo_names = repo_data['name'].unique()
+    issues_data = issues_data[issues_data['repository'].isin(filtered_repo_names)]
+    pr_data = pr_data[pr_data['repository'].isin(filtered_repo_names)]
 
     # Filter by issue resolution time
     if not issues_data.empty:
@@ -100,4 +132,5 @@ def apply_advanced_filters(repo_data, issues_data, pr_data):
 
         repo_data = repo_data[(repo_data['created_at'] >= start_date) & (repo_data['created_at'] <= end_date)]
 
+    # Return the filtered data after all filters have been applied
     return repo_data, issues_data, pr_data
