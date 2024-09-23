@@ -33,7 +33,7 @@ def fetch_data_from_pocketbase(collection_name):
     """Fetch data from a PocketBase collection and return as a DataFrame."""
     try:
         records = pb.collection(collection_name).get_full_list()
-        df = pd.DataFrame([record.dict() for record in records])
+        df = pd.DataFrame([{k: v for k, v in record.__dict__.items() if not k.startswith('_')} for record in records])
         return df
     except ClientResponseError as e:
         logging.error(f"Error fetching data from {collection_name}: {e}")
